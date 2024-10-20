@@ -15,7 +15,6 @@ const News = () => {
     const { data: session, status } = useSession();
     const router = useRouter(); // Use next/router for client-side routing
 
-    // Use the environment variable for API key
     const API_KEY = process.env.NEXT_PUBLIC_NEWS_API_KEY;
     const URL = `https://newsapi.org/v2/everything?q=${searchQuery || 'apple'}&from=2024-10-15&to=2024-10-15&sortBy=popularity&apiKey=${API_KEY}`;
 
