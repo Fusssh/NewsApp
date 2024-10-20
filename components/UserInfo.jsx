@@ -2,7 +2,7 @@
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useRouter } from 'next/navigation'; // Updated import
+import { useRouter } from 'next/navigation'; // Corrected import
 import { signOut } from 'next-auth/react';
 
 const News = () => {
@@ -12,10 +12,17 @@ const News = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [articlesPerPage] = useState(6); // Set the number of articles per page
-    const router = useRouter(); // Using next/navigation router
-    const { data: session } = useSession();
+    const router = useRouter(); // Using next/router
+    const { data: session, status } = useSession();
     const API_KEY = '488b738fa27a4b8392a4b5e8cc0feb12';
     const URL = `https://newsapi.org/v2/everything?q=${searchQuery || 'apple'}&from=2024-10-15&to=2024-10-15&sortBy=popularity&apiKey=${API_KEY}`;
+
+    // Redirect unauthenticated users to the login page
+    useEffect(() => {
+        if (status === 'unauthenticated') {
+            router.push('/'); // Redirect to the home or login page
+        }
+    }, [status, router]);
 
     useEffect(() => {
         const fetchArticles = async () => {
@@ -36,7 +43,7 @@ const News = () => {
     const indexOfLastArticle = currentPage * articlesPerPage;
     const indexOfFirstArticle = indexOfLastArticle - articlesPerPage;
     const currentArticles = articles.slice(indexOfFirstArticle, indexOfLastArticle);
-    
+
     // Handle search input change
     const handleSearchChange = (event) => {
         setSearchQuery(event.target.value);
@@ -50,6 +57,14 @@ const News = () => {
 
     const totalPages = Math.ceil(articles.length / articlesPerPage);
     const paginationNumbers = [...Array(totalPages)].map((_, i) => i + 1);
+
+    if (status === 'loading') {
+        return <div className="text-center">Loading...</div>;
+    }
+
+    if (!session) {
+        return null; // Optionally display a message for unauthenticated users
+    }
 
     if (loading) return <div className="text-center">Loading...</div>;
     if (error) return <div className="text-red-500">{error}</div>;
@@ -73,7 +88,7 @@ const News = () => {
 
             <div className="max-w-5xl mx-auto p-4">
                 <h1 className="text-3xl font-bold text-center mb-4">Latest News</h1>
-                
+
                 <input
                     type="text"
                     placeholder="Search articles..."
