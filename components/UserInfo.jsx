@@ -1,8 +1,8 @@
-"use client"; // Client-side rendering
+"use client"; // Ensure client-side rendering
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useRouter } from 'next/navigation'; // Corrected import
+import { useRouter } from 'next/navigation'; // Use next/navigation for client-side routing
 import { signOut } from 'next-auth/react';
 
 const News = () => {
@@ -12,15 +12,17 @@ const News = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [articlesPerPage] = useState(6); // Set the number of articles per page
-    const router = useRouter(); // Using next/router
     const { data: session, status } = useSession();
-    const API_KEY = '488b738fa27a4b8392a4b5e8cc0feb12';
+    const router = useRouter(); // Use next/router for client-side routing
+
+    // Use the environment variable for API key
+    const API_KEY = process.env.NEXT_PUBLIC_NEWS_API_KEY;
     const URL = `https://newsapi.org/v2/everything?q=${searchQuery || 'apple'}&from=2024-10-15&to=2024-10-15&sortBy=popularity&apiKey=${API_KEY}`;
 
-    // Redirect unauthenticated users to the login page
+    // Client-side check to avoid SSR issues with router
     useEffect(() => {
-        if (status === 'unauthenticated') {
-            router.push('/'); // Redirect to the home or login page
+        if (typeof window !== 'undefined' && status === 'unauthenticated') {
+            router.push('/'); // Redirect to home or login page
         }
     }, [status, router]);
 
