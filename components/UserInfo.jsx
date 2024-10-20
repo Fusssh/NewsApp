@@ -2,7 +2,7 @@
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useRouter } from 'next/navigation'; // Use next/navigation for client-side routing
+import { useRouter } from 'next/navigation'; // Use next/router for client-side routing
 import { signOut } from 'next-auth/react';
 
 const News = () => {
@@ -15,7 +15,7 @@ const News = () => {
     const { data: session, status } = useSession();
     const router = useRouter(); // Use next/router for client-side routing
 
-    const API_KEY = process.env.NEXT_PUBLIC_NEWS_API_KEY;
+    const API_KEY = '488b738fa27a4b8392a4b5e8cc0feb12';
     const URL = `https://newsapi.org/v2/everything?q=${searchQuery || 'apple'}&from=2024-10-15&to=2024-10-15&sortBy=popularity&apiKey=${API_KEY}`;
 
     // Client-side check to avoid SSR issues with router
