@@ -1,63 +1,77 @@
 "use client"; // Ensure client-side rendering
 import { useSession } from 'next-auth/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation'; // Use next/router for client-side routing
 import { signOut } from 'next-auth/react';
 
 const News = () => {
     const [articles, setArticles] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const [articlesPerPage] = useState(6); // Set the number of articles per page
+    const [hasMore, setHasMore] = useState(true);
     const { data: session, status } = useSession();
-    const router = useRouter(); // Use next/router for client-side routing
+    const router = useRouter();
+    const loader = useRef(null);
 
-    const API_KEY = '488b738fa27a4b8392a4b5e8cc0feb12';
-    const URL = `https://newsapi.org/v2/everything?q=${searchQuery || 'apple'}&from=2024-10-15&to=2024-10-15&sortBy=popularity&apiKey=${API_KEY}`;
+    const API_KEY = process.env.NEXT_PUBLIC_APIKEY;
+    const URL = `https://newsapi.org/v2/everything?q=${searchQuery || 'apple'}&pageSize=6&page=${currentPage}&apiKey=${API_KEY}`;
 
-    // Client-side check to avoid SSR issues with router
     useEffect(() => {
         if (typeof window !== 'undefined' && status === 'unauthenticated') {
             router.push('/'); // Redirect to home or login page
         }
     }, [status, router]);
 
-    useEffect(() => {
-        const fetchArticles = async () => {
-            try {
-                const response = await axios.get(URL);
-                setArticles(response.data.articles);
-            } catch (err) {
-                setError('Failed to fetch articles.');
-            } finally {
-                setLoading(false);
+    const fetchArticles = async () => {
+        setLoading(true);
+        try {
+            const response = await axios.get(URL);
+            if (response.data.articles.length === 0) {
+                setHasMore(false); // No more articles
+            } else {
+                setArticles((prevArticles) => [...prevArticles, ...response.data.articles]);
             }
-        };
+        } catch (err) {
+            setError('Failed to fetch articles.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
+    useEffect(() => {
         fetchArticles();
-    }, [URL]); // Dependency array includes URL to refetch on query change
-
-    // Pagination logic
-    const indexOfLastArticle = currentPage * articlesPerPage;
-    const indexOfFirstArticle = indexOfLastArticle - articlesPerPage;
-    const currentArticles = articles.slice(indexOfFirstArticle, indexOfLastArticle);
+    }, [currentPage, searchQuery]);
 
     // Handle search input change
     const handleSearchChange = (event) => {
         setSearchQuery(event.target.value);
-        setCurrentPage(1); // Reset to first page on search
+        setArticles([]); // Clear current articles on new search
+        setCurrentPage(1); // Reset page number
+        setHasMore(true); // Reset hasMore flag
     };
 
-    // Handle page change
-    const handlePageChange = (pageNumber) => {
-        setCurrentPage(pageNumber);
-    };
+    // Infinite scroll logic
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && hasMore && !loading) {
+                    setCurrentPage((prevPage) => prevPage + 1); // Load next page
+                }
+            },
+            { threshold: 1 }
+        );
 
-    const totalPages = Math.ceil(articles.length / articlesPerPage);
-    const paginationNumbers = [...Array(totalPages)].map((_, i) => i + 1);
+        if (loader.current) {
+            observer.observe(loader.current);
+        }
+
+        return () => {
+            if (loader.current) observer.unobserve(loader.current);
+        };
+    }, [loading, hasMore]);
 
     if (status === 'loading') {
         return <div className="text-center">Loading...</div>;
@@ -67,7 +81,6 @@ const News = () => {
         return null; // Optionally display a message for unauthenticated users
     }
 
-    if (loading) return <div className="text-center">Loading...</div>;
     if (error) return <div className="text-red-500">{error}</div>;
 
     return (
@@ -99,7 +112,7 @@ const News = () => {
                 />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {currentArticles.map((article, index) => (
+                    {articles.map((article, index) => (
                         <div key={index} className="bg-white shadow-lg rounded-lg overflow-hidden">
                             {article.urlToImage && (
                                 <img src={article.urlToImage} alt={article.title} className="w-full h-48 object-cover" />
@@ -115,17 +128,8 @@ const News = () => {
                     ))}
                 </div>
 
-                {/* Pagination Controls */}
-                <div className="flex justify-center mt-4">
-                    {paginationNumbers.map(number => (
-                        <button
-                            key={number}
-                            onClick={() => handlePageChange(number)}
-                            className={`mx-1 px-4 py-2 rounded ${currentPage === number ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
-                        >
-                            {number}
-                        </button>
-                    ))}
+                <div ref={loader} className="text-center mt-4">
+                    {loading && <div>Loading more articles...</div>}
                 </div>
             </div>
         </>
